@@ -27,8 +27,8 @@ Any tool not found in `$PATH` is skipped automatically with a warning — the sc
 
 1. Clone the repo:
    ```bash
-   git clone https://github.com/<your-username>/<your-repo>.git
-   cd <your-repo>
+   git clone https://github.com/0xMadMax4/Passive-Subdomain-Enumeration.git
+   cd Passive-Subdomain-Enumeration
    ```
 
 2. Install dependencies:
