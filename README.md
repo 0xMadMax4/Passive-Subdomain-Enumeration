@@ -4,14 +4,14 @@ A Go automation script that runs multiple passive subdomain enumeration sources 
 
 ## Tools used
 
-| Tool | Source type |
-|---|---|
-| [subfinder](https://github.com/projectdiscovery/subfinder) | Multi-source passive API aggregator |
-| [Findomain](https://github.com/Findomain/Findomain) | Certificate transparency + multi-API |
-| [chaos-client](https://github.com/projectdiscovery/chaos-client) | ProjectDiscovery's curated dataset |
-| [bbot](https://github.com/blacklanternsecurity/bbot) | Recursive OSINT framework (passive-only preset) |
-| [github-subdomains](https://github.com/gwen001/github-subdomains) | GitHub code search |
-| [gitlab-subdomains](https://github.com/gwen001/gitlab-subdomains) | GitLab code search |
+| Tool                                                              | Source type                                     |
+| ----------------------------------------------------------------- | ----------------------------------------------- |
+| [subfinder](https://github.com/projectdiscovery/subfinder)        | Multi-source passive API aggregator             |
+| [Findomain](https://github.com/Findomain/Findomain)               | Certificate transparency + multi-API            |
+| [chaos-client](https://github.com/projectdiscovery/chaos-client)  | ProjectDiscovery's curated dataset              |
+| [bbot](https://github.com/blacklanternsecurity/bbot)              | Recursive OSINT framework (passive-only preset) |
+| [github-subdomains](https://github.com/gwen001/github-subdomains) | GitHub code search                              |
+| [gitlab-subdomains](https://github.com/gwen001/gitlab-subdomains) | GitLab code search                              |
 
 All tools are run in **passive-only** mode — no DNS bruteforcing, no direct requests to the target's infrastructure.
 
@@ -26,23 +26,28 @@ Any tool not found in `$PATH` is skipped automatically with a warning — the sc
 ## Installation
 
 1. Clone the repo:
+
    ```bash
    git clone https://github.com/0xMadMax4/Passive-Subdomain-Enumeration.git
    cd Passive-Subdomain-Enumeration
    ```
 
 2. Install dependencies:
+
    ```bash
    go mod tidy
    ```
 
 3. Set up your API keys:
+
    ```bash
-   cp .env.example .env
+   nano .env
    ```
+
    Then edit `.env` with your own values:
+
    ```env
-   GITHUB_TOKEN=token1,token2,token3
+   GITHUB_TOKEN=token1
    GITLAB_TOKEN=your_gitlab_token
    PDCP_API_KEY=your_chaos_key
    ```
@@ -67,10 +72,10 @@ Optional flags:
 go run . -d example.com -o my_output_dir
 ```
 
-| Flag | Description | Default |
-|---|---|---|
-| `-d` | Target root domain (required) | — |
-| `-o` | Output directory | `recon_out` |
+| Flag | Description                   | Default     |
+| ---- | ----------------------------- | ----------- |
+| `-d` | Target root domain (required) | —           |
+| `-o` | Output directory              | `recon_out` |
 
 Or build a binary and run it directly:
 
@@ -96,4 +101,5 @@ At the end, everything is merged, lowercased, deduplicated, and filtered to only
 - This script is passive-only by design. It performs no active DNS resolution, bruteforcing, or requests to the target.
 - Results depend heavily on which API keys you've configured — tools without keys will still run but return fewer results.
 - Always confirm a discovered subdomain is in-scope before testing it against any bug bounty program.
+
 # Passive-Subdomain-Enumeration
