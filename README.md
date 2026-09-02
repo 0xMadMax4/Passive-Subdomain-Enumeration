@@ -96,3 +96,4 @@ At the end, everything is merged, lowercased, deduplicated, and filtered to only
 - This script is passive-only by design. It performs no active DNS resolution, bruteforcing, or requests to the target.
 - Results depend heavily on which API keys you've configured — tools without keys will still run but return fewer results.
 - Always confirm a discovered subdomain is in-scope before testing it against any bug bounty program.
+# Passive-Subdomain-Enumeration
