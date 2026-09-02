@@ -1,0 +1,17 @@
+# Environment variables / secrets
+.env
+
+# Compiled binary
+subdomain_enum
+
+# Go build artifacts
+*.exe
+*.test
+*.out
+
+# Recon output
+recon_out/
+*_all_subdomains.txt
+
+# OS junk
+.DS_Store
