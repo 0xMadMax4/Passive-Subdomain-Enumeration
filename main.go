@@ -6,8 +6,8 @@
 // Output naming convention: <toolname>_<target>.txt
 //
 // Usage:
+//   go run . -d feverup.com
 //
-//	go run . -d feverup.com
 package main
 
 import (
@@ -27,10 +27,10 @@ import (
 // ---------- config ----------
 
 type tool struct {
-	name    string                                // used in output filename: <name>_<target>.txt
-	bin     string                                // binary to check exists in $PATH
+	name    string   // used in output filename: <name>_<target>.txt
+	bin     string   // binary to check exists in $PATH
 	build   func(target, outFile string) []string // builds the command args
-	envKeys []string                              // env vars this tool needs (just for a friendly warning if missing)
+	envKeys []string // env vars this tool needs (just for a friendly warning if missing)
 }
 
 func main() {
