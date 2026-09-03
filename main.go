@@ -6,8 +6,8 @@
 // Output naming convention: <toolname>_<target>.txt
 //
 // Usage:
-//   go run . -d feverup.com
 //
+//	go run . -d feverup.com
 package main
 
 import (
@@ -26,26 +26,24 @@ import (
 // ---------- config ----------
 
 type tool struct {
-	name    string   // used in output filename: <name>_<target>.txt
-	bin     string   // binary to check exists in $PATH
+	name    string                                // used in output filename: <name>_<target>.txt
+	bin     string                                // binary to check exists in $PATH
 	build   func(target, outFile string) []string // builds the command args
-	envKeys []string // env vars this tool needs (just for a friendly warning if missing)
+	envKeys []string                              // env vars this tool needs (just for a friendly warning if missing)
 }
 
 func main() {
 	domain := flag.String("d", "", "target root domain (required)")
-	outDir := flag.String("o", "recon_out", "output directory")
+	outDir := flag.String("o", "recon_out", "output directory (relative to current directory, or absolute)")
+	envFile := flag.String("env", "", "path to .env file (default: looks in current dir, then next to the binary)")
 	flag.Parse()
 
 	if *domain == "" {
-		fmt.Println("Usage: go run . -d <domain> [-o output_dir]")
+		fmt.Println("Usage: subdomain_enum -d <domain> [-o output_dir] [-env /path/to/.env]")
 		os.Exit(1)
 	}
 
-	// load .env if present (GITHUB_TOKEN, GITLAB_TOKEN, PDCP_API_KEY, etc.)
-	if err := godotenv.Load(); err != nil {
-		warn(".env not found or unreadable — relying on already-exported env vars")
-	}
+	loadEnv(*envFile)
 
 	if err := os.MkdirAll(*outDir, 0755); err != nil {
 		fatal("could not create output dir: %v", err)
@@ -73,6 +71,7 @@ func main() {
 		args := t.build(*domain, outFile)
 
 		cmd := exec.Command(t.bin, args...)
+		cmd.Stdin = os.Stdin // let interactive commands (e.g. bbot's "kill <module>") reach the subprocess
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 
@@ -102,9 +101,97 @@ func main() {
 
 	fmt.Println()
 	ok("===================================================")
-	ok("DONE. %d unique subdomains written to:", count)
+	ok("Passive enumeration done. %d unique subdomains written to:", count)
 	ok("  %s", finalFile)
 	ok("===================================================")
+	fmt.Println()
+
+	httpxFile := filepath.Join(*outDir, fmt.Sprintf("httpx_%s.json", *domain))
+	runHttpx(finalFile, httpxFile)
+
+	fmt.Println()
+	ok("===================================================")
+	ok("ALL DONE.")
+	ok("  Subdomains : %s", finalFile)
+	ok("  Live probe : %s", httpxFile)
+	ok("===================================================")
+}
+
+// ---------- httpx (live probing) ----------
+//
+// Takes the final deduped subdomain list and probes each host for status
+// code, title, tech stack, server, redirect location, content-length, and
+// resolved IP — written as JSON lines for easy parsing later.
+func runHttpx(inputFile, outputFile string) {
+	if _, err := exec.LookPath("httpx"); err != nil {
+		warn("httpx not found in $PATH — skipping live probing")
+		return
+	}
+
+	if !fileExistsNonEmpty(inputFile) {
+		warn("no subdomains to probe (input file empty) — skipping httpx")
+		return
+	}
+
+	info("==> Running httpx")
+
+	args := []string{
+		"-l", inputFile,
+		"-silent",
+		"-sc",
+		"-title",
+		"-td",
+		"-server",
+		"-location",
+		"-cl",
+		"-ip",
+		"-json",
+		"-o", outputFile,
+	}
+
+	cmd := exec.Command("httpx", args...)
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	if err := cmd.Run(); err != nil {
+		warn("httpx exited with error: %v (continuing anyway)", err)
+	}
+
+	if fileExistsNonEmpty(outputFile) {
+		ok("httpx done -> %s", outputFile)
+	} else {
+		warn("httpx produced no output at %s", outputFile)
+	}
+}
+
+func loadEnv(explicitPath string) {
+	// 1. explicit -env flag always wins
+	if explicitPath != "" {
+		if err := godotenv.Load(explicitPath); err != nil {
+			warn("could not load .env from %s: %v", explicitPath, err)
+		} else {
+			info("Loaded API keys from %s", explicitPath)
+		}
+		return
+	}
+
+	// 2. .env in the current working directory (per-project overrides)
+	if err := godotenv.Load(); err == nil {
+		info("Loaded API keys from ./.env")
+		return
+	}
+
+	// 3. global fallback — works no matter which directory you run the tool from
+	if home, err := os.UserHomeDir(); err == nil {
+		globalEnv := filepath.Join(home, ".config", "subdomain-enum", ".env")
+		if err := godotenv.Load(globalEnv); err == nil {
+			info("Loaded API keys from %s", globalEnv)
+			return
+		}
+	}
+
+	warn("no .env found (checked ./.env and ~/.config/subdomain-enum/.env) — relying on already-exported env vars")
 }
 
 // ---------- tool definitions ----------
@@ -144,7 +231,7 @@ func buildToolList(domain, outDir string) []tool {
 					"-t", target,
 					"-p", "subdomain-enum",
 					"-rf", "passive",
-					"-em", "crt_db",
+					"-em", "crt_db,wayback,asn",
 					"-n", scanName,
 					"-o", bbotOutDir,
 					"-y",
