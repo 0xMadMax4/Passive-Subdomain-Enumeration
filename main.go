@@ -49,7 +49,7 @@ func main() {
 		fatal("could not create output dir: %v", err)
 	}
 
-	tools := buildToolList(*domain, *outDir)
+	tools := buildToolList(*outDir)
 
 	info("Target: %s", *domain)
 	info("Output directory: %s", *outDir)
@@ -196,7 +196,7 @@ func loadEnv(explicitPath string) {
 
 // ---------- tool definitions ----------
 
-func buildToolList(domain, outDir string) []tool {
+func buildToolList(outDir string) []tool {
 	return []tool{
 		{
 			name: "subfinder",
@@ -300,6 +300,9 @@ func mergeDedupe(files []string, finalFile, domain string) (int, error) {
 				continue // drop anything that isn't actually a subdomain of the target
 			}
 			seen[line] = struct{}{}
+		}
+		if err := scanner.Err(); err != nil {
+			warn("error reading %s: %v", f, err)
 		}
 		fh.Close()
 	}
