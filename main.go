@@ -12,6 +12,7 @@ package main
 
 import (
 	"bufio"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
@@ -109,12 +110,75 @@ func main() {
 	httpxFile := filepath.Join(*outDir, fmt.Sprintf("httpx_%s.json", *domain))
 	runHttpx(finalFile, httpxFile)
 
+	liveFile := filepath.Join(*outDir, fmt.Sprintf("live_%s.txt", *domain))
+	liveCount, err := extractLiveSubdomains(httpxFile, liveFile)
+	if err != nil {
+		warn("could not extract live subdomains from httpx output: %v", err)
+	}
+
 	fmt.Println()
 	ok("===================================================")
 	ok("ALL DONE.")
-	ok("  Subdomains : %s", finalFile)
-	ok("  Live probe : %s", httpxFile)
+	ok("  Subdomains (passive)   : %s", finalFile)
+	ok("  httpx raw output       : %s", httpxFile)
+	ok("  Live subdomains (%3d)  : %s", liveCount, liveFile)
 	ok("===================================================")
+}
+
+// ---------- extract live subdomains from httpx JSON ----------
+//
+// httpx -json writes one JSON object per line. Each object's "input" field
+// is the exact hostname that was probed (no scheme, no path) — this pulls
+// just that field out into a plain one-per-line list of hosts that are
+// confirmed alive.
+type httpxResult struct {
+	Input string `json:"input"`
+}
+
+func extractLiveSubdomains(jsonFile, outFile string) (int, error) {
+	if !fileExistsNonEmpty(jsonFile) {
+		return 0, nil // httpx didn't run or produced nothing — nothing to extract
+	}
+
+	in, err := os.Open(jsonFile)
+	if err != nil {
+		return 0, err
+	}
+	defer in.Close()
+
+	seen := make(map[string]struct{})
+	scanner := bufio.NewScanner(in)
+	scanner.Buffer(make([]byte, 1024*1024), 1024*1024) // httpx lines can be long (redirect URLs, etc.)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" {
+			continue
+		}
+		var r httpxResult
+		if err := json.Unmarshal([]byte(line), &r); err != nil {
+			continue // skip malformed lines instead of failing the whole run
+		}
+		if r.Input != "" {
+			seen[strings.ToLower(r.Input)] = struct{}{}
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		return 0, err
+	}
+
+	out, err := os.Create(outFile)
+	if err != nil {
+		return 0, err
+	}
+	defer out.Close()
+
+	writer := bufio.NewWriter(out)
+	defer writer.Flush()
+	for s := range seen {
+		fmt.Fprintln(writer, s)
+	}
+
+	return len(seen), nil
 }
 
 // ---------- httpx (live probing) ----------
